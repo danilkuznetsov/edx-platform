@@ -205,8 +205,8 @@ class SubsectionGradeTest(GradeTestBase):
         input_grade.init_from_structure(
             self.request.user,
             self.course_structure,
-            self.subsection_grade_factory._scores_client,  # pylint: disable=protected-access
             self.subsection_grade_factory._submissions_scores,  # pylint: disable=protected-access
+            self.subsection_grade_factory._csm_scores,  # pylint: disable=protected-access
         )
         self.assertEqual(PersistentSubsectionGrade.objects.count(), 0)
 
@@ -224,8 +224,8 @@ class SubsectionGradeTest(GradeTestBase):
             self.request.user,
             saved_model,
             self.course_structure,
-            self.subsection_grade_factory._scores_client,  # pylint: disable=protected-access
             self.subsection_grade_factory._submissions_scores,  # pylint: disable=protected-access
+            self.subsection_grade_factory._csm_scores,  # pylint: disable=protected-access
         )
 
         self.assertEqual(input_grade.url_name, loaded_grade.url_name)
