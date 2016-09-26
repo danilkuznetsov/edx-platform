@@ -421,6 +421,7 @@ class CodeInputTest(unittest.TestCase):
             'hidden': '',
             'tabsize': int(tabsize),
             'queue_len': '3',
+            'code_mirror_exit_message': 'Press ESC then TAB or click outside of the code editor to exit',
             'response_data': RESPONSE_DATA,
             'describedby': DESCRIBEDBY
         }

@@ -4,7 +4,6 @@
       <label class="problem-group-label" for="cm-textarea-${id}">${response_data['label']}</label>
   % endif
   <textarea rows="${rows}" cols="${cols}" name="input_${id}"
-            aria-label="${_("{programming_language} editor").format(programming_language=mode)}"
             aria-describedby="answer_${id}"
             id="input_${id}"
             tabindex="0"
@@ -17,8 +16,8 @@
       	    style="display:none;"
             % endif
   >${value|h}</textarea>
-  <span class="cm-editor-exit-message capa-message" id="cm-editor-exit-message_${id}">
-    ${_("Press ESC then TAB or click outside of the code editor to exit")}
+  <span class="cm-editor-exit-message capa-message" id="cm-editor-exit-message-${id}">
+    ${code_mirror_exit_message}
   </span>
 
   <div class="grader-status" tabindex="-1">
