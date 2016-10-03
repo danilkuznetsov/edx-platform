@@ -165,6 +165,8 @@ FEATURES['ENABLE_DASHBOARD_SEARCH'] = True
 ########################## Certificates Web/HTML View #######################
 FEATURES['CERTIFICATES_HTML_VIEW'] = True
 
+########################## Visual progress in accordion #######################
+FEATURES['ENABLE_VISUAL_PROGRESS_IN_ACCORDION'] = True
 
 ########################## Course Discovery #######################
 LANGUAGE_MAP = {'terms': {lang: display for lang, display in ALL_LANGUAGES}, 'name': 'Language'}

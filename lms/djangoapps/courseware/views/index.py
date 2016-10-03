@@ -23,6 +23,9 @@ import newrelic.agent
 import urllib
 
 from lang_pref import LANGUAGE_KEY
+from courseware import grades
+
+from lms.djangoapps.course_blocks.api import get_course_blocks
 from xblock.fragment import Fragment
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.lib.gating import api as gating_api
@@ -52,7 +55,6 @@ from ..masquerade import setup_masquerade
 from ..model_data import FieldDataCache
 from ..module_render import toc_for_course, get_module_for_descriptor
 from .views import get_current_child, registered_for_course
-
 
 log = logging.getLogger("edx.courseware.views.index")
 TEMPLATE_IMPORTS = {'urllib': urllib}
@@ -95,6 +97,8 @@ class CoursewareIndex(View):
         self.position = position
         self.chapter, self.section = None, None
         self.url = request.path
+        # it is used for visual display of progress in accordion and for phased opening materials
+        self.progress_summary = None
 
         try:
             self._init_new_relic()
@@ -103,6 +107,8 @@ class CoursewareIndex(View):
                 self.course = get_course_with_access(request.user, 'load', self.course_key, depth=CONTENT_DEPTH)
                 self.is_staff = has_access(request.user, 'staff', self.course)
                 self._setup_masquerade_for_effective_user()
+                if settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION',False):
+                    self._calc_progress_summary()
                 return self._get()
         except Redirect as redirect_error:
             return redirect(redirect_error.url)
@@ -113,6 +119,23 @@ class CoursewareIndex(View):
             raise
         except Exception:  # pylint: disable=broad-except
             return self._handle_unexpected_error()
+
+    def _calc_progress_summary(self):
+        """
+        Calculate total progress for the course and the student
+
+        """
+        student = self.request.user
+        student = User.objects.prefetch_related("groups").get(id=student.id)
+        course_structure = get_course_blocks(student, self.course.location)
+        dirty_scores = True
+
+        self.progress_summary = grades.progress_summary(student, self.course, course_structure, dirty_scores)
+
+        if self.progress_summary is None:
+            log.info(
+                u'Points for the User %d were not counted in course %s ',
+                student.id, unicode(self.course.id))
 
     def _setup_masquerade_for_effective_user(self):
         """
@@ -157,8 +180,8 @@ class CoursewareIndex(View):
         and error logs have the appropriate URLs.
         """
         if (
-                self.chapter.url_name != self.original_chapter_url_name or
-                (self.original_section_url_name and self.section.url_name != self.original_section_url_name)
+                        self.chapter.url_name != self.original_chapter_url_name or
+                    (self.original_section_url_name and self.section.url_name != self.original_section_url_name)
         ):
             raise Redirect(
                 reverse(
@@ -262,8 +285,8 @@ class CoursewareIndex(View):
         Check to see if an Entrance Exam is required for the user.
         """
         if (
-                course_has_entrance_exam(self.course) and
-                user_must_complete_entrance_exam(self.request, self.effective_user, self.course)
+                    course_has_entrance_exam(self.course) and
+                    user_must_complete_entrance_exam(self.request, self.effective_user, self.course)
         ):
             exam_chapter = get_entrance_exam_content(self.effective_user, self.course)
             if exam_chapter and exam_chapter.get_children():
@@ -400,6 +423,7 @@ class CoursewareIndex(View):
             'language_preference': self._get_language_preference(),
             'disable_optimizely': True,
         }
+
         table_of_contents = toc_for_course(
             self.effective_user,
             self.request,
@@ -407,7 +431,9 @@ class CoursewareIndex(View):
             self.chapter_url_name,
             self.section_url_name,
             self.field_data_cache,
+            self.progress_summary,
         )
+
         courseware_context['accordion'] = render_accordion(self.request, self.course, table_of_contents['chapters'])
 
         # entrance exam data
@@ -451,6 +477,7 @@ class CoursewareIndex(View):
         """
         Returns and creates the rendering context for the section.
         """
+
         def _compute_section_url(section_info, requested_child):
             """
             Returns the section URL for the given section_info with the given child parameter.
@@ -503,7 +530,7 @@ class CoursewareIndex(View):
             raise
 
 
-def render_accordion(request, course, table_of_contents):
+def render_accordion(request, course, table_of_contents, scores_summary=None):
     """
     Returns the HTML that renders the navigation for the given course.
     Expects the table_of_contents to have data on each chapter and section,
@@ -516,6 +543,7 @@ def render_accordion(request, course, table_of_contents):
             ('csrf', csrf(request)['csrf_token']),
             ('due_date_display_format', course.due_date_display_format),
             ('time_zone', get_user_time_zone(request.user).zone),
+            ('is_show_grade',settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False)),
         ] + TEMPLATE_IMPORTS.items()
     )
     return render_to_string('courseware/accordion.html', context)

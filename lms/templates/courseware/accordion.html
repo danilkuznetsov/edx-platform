@@ -16,11 +16,16 @@ if chapter.get('active'):
 else:
     aria_label = chapter['display_name']
     active_class = ''
+
 %>
 <a href="#${chapter['display_id']}-child" role="button" class="button-chapter chapter ${active_class}" id="${chapter['display_id']}-parent" aria-controls="${chapter['display_id']}-child" aria-expanded="false">
     <span class="group-heading ${active_class}" aria-label="${aria_label}">
         <span class="icon fa fa-caret-right" aria-hidden="true"></span>
         ${chapter['display_name']}
+        % if is_show_grade and chapter['graded']:
+             <span class="progress-points-earned"> ${"{0:.0%}".format(chapter['completion_percent'])}</span>
+             <span class="progress-points-possible"> of ${"{0:.0%}".format(1)}</span>
+        % endif
     </span>
 </a>
 <div class="chapter-content-container" id="${chapter['display_id']}-child" tabindex="-1" role="group" aria-label="${chapter['display_name']} submenu">
@@ -65,10 +70,28 @@ else:
                         <span class="subtitle-name">${section['format']} ${due_date}</span>
 
                         % if 'graded' in section and section['graded']:
+
+                           % if is_show_grade and section['possible'] > 0 :
+                                <%
+                                pic = "/static/images/graded.png"
+                                if section['earned'] == section['possible']:
+                                    pic = "/static/images/graded_section_passed.png"
+                                elif section['earned'] > 0:
+                                    pic = "/static/images/graded_section_inprogress.png"
+                                %>
+                                  <p class="progress-points">
+                                      <img src="${pic}" alt="Mark progress section">
+                                      <span class="progress-points-earned">${"{:.0f}".format(section['earned'])}</span>
+                                      of
+                                      <span class="progress-points-possible">${"{:.0f}".format(section['possible'])}</span>
+                                  </p>
+                            % endif
                             <span class="menu-icon icon fa fa-pencil-square-o" aria-hidden="true"></span>
                             <span class="sr">${_("This content is graded")}</span>
                         % endif
                     % endif
+
+
                 </p>
                 % endif
             </a>

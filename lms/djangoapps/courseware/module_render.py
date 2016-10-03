@@ -30,6 +30,7 @@ from xblock.core import XBlock
 from xblock.django.request import django_to_webob_request, webob_to_django_response
 from xblock.exceptions import NoSuchHandlerError, NoSuchViewError
 from xblock.reference.plugins import FSService
+from xmodule.graders import Score
 
 import static_replace
 from openedx.core.lib.gating import api as gating_api
@@ -119,7 +120,7 @@ def make_track_function(request):
     return function
 
 
-def toc_for_course(user, request, course, active_chapter, active_section, field_data_cache):
+def toc_for_course(user, request, course, active_chapter, active_section, field_data_cache, course_scores=None):
     '''
     Create a table of contents from the module store
 
@@ -199,6 +200,15 @@ def toc_for_course(user, request, course, active_chapter, active_section, field_
                 if is_section_active:
                     found_active_section = True
 
+                section_earned = 0
+                section_possible = 0
+
+                if course_scores is not None and settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False):
+                    section_progress = find_block_in_progress_summary(section.url_name, course_scores)
+                    if section_progress is not None:
+                        section_earned = section_progress['section_total'].earned
+                        section_possible = section_progress['section_total'].possible
+
                 section_context = {
                     'display_name': section.display_name_with_default_escaped,
                     'url_name': section.url_name,
@@ -206,6 +216,9 @@ def toc_for_course(user, request, course, active_chapter, active_section, field_
                     'due': section.due,
                     'active': is_section_active,
                     'graded': section.graded,
+                    'earned':section_earned,
+                    'possible':section_possible,
+
                 }
                 _add_timed_exam_info(user, course, section, section_context)
 
@@ -222,18 +235,30 @@ def toc_for_course(user, request, course, active_chapter, active_section, field_
                 last_processed_section = section_context
                 last_processed_chapter = chapter
 
+            chapter_completion_percent = 0.0
+            chapter_graded = False
+            if course_scores is not None and settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False):
+                chapter_progress = find_block_in_progress_summary(chapter.url_name, course_scores)
+                if chapter_progress is not None:
+                    chapter_completion_percent = chapter_progress.get('completion_percent', 0.0)
+                    chapter_scores = chapter_progress.get('scores',Score(0, 0, False, None, None))
+                    chapter_graded=chapter_scores.graded
+
             toc_chapters.append({
                 'display_name': chapter.display_name_with_default_escaped,
                 'display_id': display_id,
                 'url_name': chapter.url_name,
                 'sections': sections,
-                'active': chapter.url_name == active_chapter
+                'active': chapter.url_name == active_chapter,
+                'graded':chapter_graded,
+                'completion_percent':chapter_completion_percent,
             })
         return {
             'chapters': toc_chapters,
             'previous_of_active_section': previous_of_active_section,
             'next_of_active_section': next_of_active_section,
         }
+
 
 
 def _add_timed_exam_info(user, course, section, section_context):
@@ -1199,3 +1224,17 @@ def append_data_to_webob_response(response, data):
         response_data.update(data)
         response.body = json.dumps(response_data)
     return response
+
+
+def find_block_in_progress_summary(block_url_name=None, progress_data=None):
+
+    if block_url_name is None or progress_data is None:
+        return None
+
+    for chapter in progress_data:
+        if chapter['url_name'] == block_url_name:
+                return chapter
+        for section in chapter['sections']:
+                if section['url_name'] == block_url_name:
+                    return section
+    return None

@@ -456,12 +456,12 @@ def grade_for_percentage(grade_cutoffs, percentage):
     return letter_grade
 
 
-def progress_summary(student, course, course_structure=None):
+def progress_summary(student, course, course_structure=None,dirty_scores=False):
     """
     Returns progress summary for all chapters in the course.
     """
 
-    progress = _progress_summary(student, course, course_structure)
+    progress = _progress_summary(student, course, course_structure,dirty_scores)
     if progress:
         return progress.chapters
     else:
@@ -476,7 +476,7 @@ def get_weighted_scores(student, course):
     return _progress_summary(student, course)
 
 
-def _progress_summary(student, course, course_structure=None):
+def _progress_summary(student, course, course_structure=None,dirty_scores=False):
     """
     Unwrapped version of "progress_summary".
 
@@ -501,17 +501,25 @@ def _progress_summary(student, course, course_structure=None):
         return None
     scorable_locations = [block_key for block_key in course_structure if possibly_scored(block_key)]
 
-    with outer_atomic():
+    if dirty_scores:
         scores_client = ScoresClient.create_for_locations(course.id, student.id, scorable_locations)
+    else:
+        with outer_atomic():
+            scores_client = ScoresClient.create_for_locations(course.id, student.id, scorable_locations)
 
     # We need to import this here to avoid a circular dependency of the form:
     # XBlock --> submissions --> Django Rest Framework error strings -->
     # Django translation --> ... --> courseware --> submissions
     from submissions import api as sub_api  # installed from the edx-submissions repository
-    with outer_atomic():
+    if dirty_scores:
         submissions_scores = sub_api.get_scores(
             unicode(course.id), anonymous_id_for_user(student, course.id)
         )
+    else:
+       with outer_atomic():
+            submissions_scores = sub_api.get_scores(
+                unicode(course.id), anonymous_id_for_user(student, course.id)
+            )
 
     # Check for gated content
     gated_content = gating_api.get_gated_content(course, student)
@@ -522,6 +530,10 @@ def _progress_summary(student, course, course_structure=None):
     for chapter_key in course_structure.get_children(course_structure.root_block_usage_key):
         chapter = course_structure[chapter_key]
         sections = []
+
+        chapter_earned_points=0
+        chapter_possible_points=0
+
         for section_key in course_structure.get_children(chapter_key):
             if unicode(section_key) in gated_content:
                 continue
@@ -558,7 +570,10 @@ def _progress_summary(student, course, course_structure=None):
                 locations_to_weighted_scores[descendant.location] = weighted_location_score
 
             escaped_section_name = block_metadata_utils.display_name_with_default_escaped(section)
-            section_total, _ = graders.aggregate_scores(scores, escaped_section_name)
+            section_total, section_total_only_graded = graders.aggregate_scores(scores, escaped_section_name)
+
+            chapter_earned_points += section_total_only_graded.earned
+            chapter_possible_points += section_total_only_graded.possible
 
             sections.append({
                 'display_name': escaped_section_name,
@@ -570,11 +585,29 @@ def _progress_summary(student, course, course_structure=None):
                 'graded': graded,
             })
 
+        chapter_completion_percent = 0.0
+
+        if chapter_possible_points > 0:
+            chapter_graded = True
+        else:
+            chapter_graded = False
+
+        if chapter_possible_points > 0:
+            chapter_completion_percent=round(chapter_earned_points/float(chapter_possible_points) * 100 + 0.05) / 100
+
         chapters.append({
             'course': course.display_name_with_default_escaped,
             'display_name': block_metadata_utils.display_name_with_default_escaped(chapter),
             'url_name': block_metadata_utils.url_name_for_block(chapter),
-            'sections': sections
+            'sections': sections,
+            'scores': Score(
+                        chapter_earned_points,
+                        chapter_possible_points,
+                        chapter_graded,
+                        block_metadata_utils.display_name_with_default_escaped(chapter),
+                        None
+                    ),
+            'completion_percent': chapter_completion_percent,
         })
 
     return ProgressSummary(chapters, locations_to_weighted_scores, course_structure.get_children)

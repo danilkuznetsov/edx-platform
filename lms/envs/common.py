@@ -363,6 +363,9 @@ FEATURES = {
 
     # WIP -- will be removed in Ticket #TNL-4750.
     'ENABLE_TIME_ZONE_PREFERENCE': False,
+
+    # enable visual progress in accordion
+    'ENABLE_VISUAL_PROGRESS_IN_ACCORDION': False
 }
 
 # Ignore static asset files on import which match this pattern
