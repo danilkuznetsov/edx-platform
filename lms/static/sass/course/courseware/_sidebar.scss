@@ -4,14 +4,6 @@
     @include border-radius(3px, 0, 0, 3px);
     display: table-cell; // needed to extend the sidebar the full height of the area
 
-    .progress-points-earned{
-        color:$green;
-    }
-
-    .progress-points-possible{
-        color:$red;
-    }
-
     // provides sufficient contrast for all screen reader-only elements
     .sr, .sr-only {
         color: $black;
@@ -27,9 +19,6 @@
     .accordion {
         @extend %t-copy-sub1;
 
-        .progress-points {
-            margin-top: 2px;
-        }
 
         .course-navigation {
 
@@ -47,6 +36,22 @@
                 background-color: $sidebar-chapter-bg;
                 color: $link-color;
                 -webkit-font-smoothing: subpixel-antialiased; // this brings back our nice, dark blue
+
+                .progress-chapter {
+                    display: block;
+                    text-align: right;
+                }
+
+                .progress-chapter-zero {
+                    color: $red;
+                }
+                .progress-chapter-inpogress {
+                    color: $orange;
+                }
+
+                .progress-chapter-done {
+                    color: $green;
+                }
 
                 .group-heading {
                     @extend %t-title6;
@@ -145,6 +150,18 @@
 
                                 .subtitle-name {
                                     margin-right: 5px;
+                                }
+
+                                .progress-points {
+                                    margin-top: 2px;
+                                }
+
+                                .progress-points-earned{
+                                    color:$green;
+                                }
+
+                                .progress-points-possible{
+                                    color:$red;
                                 }
                             }
 
