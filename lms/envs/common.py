@@ -365,7 +365,15 @@ FEATURES = {
     'ENABLE_TIME_ZONE_PREFERENCE': False,
 
     # enable visual progress in accordion
-    'ENABLE_VISUAL_PROGRESS_IN_ACCORDION': False
+    'ENABLE_VISUAL_PROGRESS_IN_ACCORDION': False,
+
+    # enable step by step learn chapters
+    'ENABLE_STEP_BY_STEP_CHAPTER' : False,
+
+    # set default percent of scores for move to next chapter 1.0 = 100% 0.7 = 70 %
+    'STEP_BY_STEP_CHAPTER_PASS_LEVEL': 0.7,
+
+
 }
 
 # Ignore static asset files on import which match this pattern
