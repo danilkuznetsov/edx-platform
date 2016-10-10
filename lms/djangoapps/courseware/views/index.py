@@ -53,7 +53,7 @@ from ..entrance_exams import (
 from ..exceptions import Redirect
 from ..masquerade import setup_masquerade
 from ..model_data import FieldDataCache
-from ..module_render import toc_for_course, get_module_for_descriptor, find_block_in_progress_summary
+from ..module_render import toc_for_course, get_module_for_descriptor, find_blocks_in_progress_summary
 from .views import get_current_child, registered_for_course
 
 log = logging.getLogger("edx.courseware.views.index")
@@ -484,7 +484,7 @@ class CoursewareIndex(View):
             # section data
             courseware_context['section_title'] = self.section.display_name_with_default_escaped
 
-            if settings.FEATURES.get('ENABLE_STEP_BY_STEP_CHAPTER', False) and self._is_prev_chapter_incompleted():
+            if settings.FEATURES.get('ENABLE_STEP_BY_STEP_CHAPTER', False) and self._is_prev_chapters_incompleted():
                 courseware_context['fragment'] = Fragment(
                     content=render_to_string('courseware/step_by_step_chapter.html',
                                                  {
@@ -503,7 +503,7 @@ class CoursewareIndex(View):
 
         return courseware_context
 
-    def _is_prev_chapter_incompleted(self):
+    def _is_prev_chapters_incompleted(self):
 
         if self.progress_summary is None or self.is_staff:
             return False
@@ -511,10 +511,10 @@ class CoursewareIndex(View):
         url_prev_chapter = self._find_prev_blocks_by_url(self.course, self.chapter_url_name)
         pass_level = settings.FEATURES.get('STEP_BY_STEP_CHAPTER_PASS_LEVEL', 0)
 
-        for url in reversed(url_prev_chapter):
-            chapter = find_block_in_progress_summary(url, self.progress_summary)
+        list_scores = find_blocks_in_progress_summary(url_prev_chapter, self.progress_summary)
 
-            if chapter['scores'].graded and chapter['completion_percent'] < pass_level:
+        for item in list_scores:
+            if item['scores'].graded and item['completion_percent'] < pass_level:
                 return True
 
         return False
