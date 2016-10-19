@@ -53,7 +53,7 @@ from ..entrance_exams import (
 from ..exceptions import Redirect
 from ..masquerade import setup_masquerade
 from ..model_data import FieldDataCache
-from ..module_render import toc_for_course, get_module_for_descriptor
+from ..module_render import toc_for_course, get_module_for_descriptor, find_blocks_in_progress_summary
 from .views import get_current_child, registered_for_course
 
 log = logging.getLogger("edx.courseware.views.index")
@@ -65,6 +65,7 @@ class CoursewareIndex(View):
     """
     View class for the Courseware page.
     """
+
     @method_decorator(login_required)
     @method_decorator(ensure_csrf_cookie)
     @method_decorator(cache_control(no_cache=True, no_store=True, must_revalidate=True))
@@ -107,7 +108,8 @@ class CoursewareIndex(View):
                 self.course = get_course_with_access(request.user, 'load', self.course_key, depth=CONTENT_DEPTH)
                 self.is_staff = has_access(request.user, 'staff', self.course)
                 self._setup_masquerade_for_effective_user()
-                if settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION',False):
+                if settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False) or\
+                        settings.FEATURES.get('ENABLE_STEP_BY_STEP_CHAPTER', False):
                     self._calc_progress_summary()
                 return self._get()
         except Redirect as redirect_error:
@@ -180,9 +182,9 @@ class CoursewareIndex(View):
         and error logs have the appropriate URLs.
         """
         if (
-                        self.chapter.url_name != self.original_chapter_url_name or
-                    (self.original_section_url_name and self.section.url_name != self.original_section_url_name)
-        ):
+                self.chapter.url_name != self.original_chapter_url_name or
+                (self.original_section_url_name and self.section.url_name != self.original_section_url_name)
+            ):
             raise Redirect(
                 reverse(
                     'courseware_section',
@@ -346,6 +348,22 @@ class CoursewareIndex(View):
             child = get_current_child(parent, min_depth=min_depth, requested_child=self.request.GET.get("child"))
         return child
 
+    def _find_prev_blocks_by_url(self, parent, url_name):
+        """
+        Finds urls the prev block before the specified url_name.
+        If block not found return empty list
+
+        """
+        url_prev_blocks = []
+        if url_name:
+            for child in parent.get_children():
+                if child.location.name == url_name:
+                    return url_prev_blocks
+                else:
+                    url_prev_blocks.append(child.location.name)
+
+        return url_prev_blocks
+
     def _find_chapter(self):
         """
         Finds the requested chapter.
@@ -465,13 +483,41 @@ class CoursewareIndex(View):
 
             # section data
             courseware_context['section_title'] = self.section.display_name_with_default_escaped
-            section_context = self._create_section_context(
-                table_of_contents['previous_of_active_section'],
-                table_of_contents['next_of_active_section'],
-            )
-            courseware_context['fragment'] = self.section.render(STUDENT_VIEW, section_context)
+
+            if settings.FEATURES.get('ENABLE_STEP_BY_STEP_CHAPTER', False) and self._is_prev_chapters_incompleted():
+                courseware_context['fragment'] = Fragment(
+                    content=render_to_string('courseware/step_by_step_chapter.html',
+                                                 {
+                                                     'next_chapter_pass_percent':
+                                                     settings.FEATURES.get('STEP_BY_STEP_CHAPTER_PASS_LEVEL', 0)
+
+                                                 }
+                                             )
+                )
+            else:
+                section_context = self._create_section_context(
+                    table_of_contents['previous_of_active_section'],
+                    table_of_contents['next_of_active_section'],
+                )
+                courseware_context['fragment'] = self.section.render(STUDENT_VIEW, section_context)
 
         return courseware_context
+
+    def _is_prev_chapters_incompleted(self):
+
+        if self.progress_summary is None or self.is_staff:
+            return False
+
+        url_prev_chapter = self._find_prev_blocks_by_url(self.course, self.chapter_url_name)
+        pass_level = settings.FEATURES.get('STEP_BY_STEP_CHAPTER_PASS_LEVEL', 0)
+
+        list_scores = find_blocks_in_progress_summary(url_prev_chapter, self.progress_summary)
+
+        for item in list_scores:
+            if item['scores'].graded and item['completion_percent'] < pass_level:
+                return True
+
+        return False
 
     def _create_section_context(self, previous_of_active_section, next_of_active_section):
         """

@@ -204,10 +204,13 @@ def toc_for_course(user, request, course, active_chapter, active_section, field_
                 section_possible = 0
 
                 if course_scores is not None and settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False):
-                    section_progress = find_block_in_progress_summary(section.url_name, course_scores)
-                    if section_progress is not None:
-                        section_earned = section_progress['section_total'].earned
-                        section_possible = section_progress['section_total'].possible
+
+                    sections_progress = find_blocks_in_progress_summary([section.url_name], course_scores)
+
+                    for item in sections_progress:
+                        if item['url_name'] == section.url_name:
+                            section_earned = item['section_total'].earned
+                            section_possible = item['section_total'].possible
 
                 section_context = {
                     'display_name': section.display_name_with_default_escaped,
@@ -238,11 +241,14 @@ def toc_for_course(user, request, course, active_chapter, active_section, field_
             chapter_completion_percent = 0.0
             chapter_graded = False
             if course_scores is not None and settings.FEATURES.get('ENABLE_VISUAL_PROGRESS_IN_ACCORDION', False):
-                chapter_progress = find_block_in_progress_summary(chapter.url_name, course_scores)
-                if chapter_progress is not None:
-                    chapter_completion_percent = chapter_progress.get('completion_percent', 0.0)
-                    chapter_scores = chapter_progress.get('scores',Score(0, 0, False, None, None))
-                    chapter_graded=chapter_scores.graded
+
+                chapters_progress = find_blocks_in_progress_summary([chapter.url_name], course_scores)
+
+                for item in chapters_progress:
+                    if item['url_name'] == chapter.url_name:
+                        chapter_completion_percent = item.get('completion_percent', 0.0)
+                        chapter_scores = item.get('scores',Score(0, 0, False, None, None))
+                        chapter_graded = chapter_scores.graded
 
             toc_chapters.append({
                 'display_name': chapter.display_name_with_default_escaped,
@@ -1226,15 +1232,16 @@ def append_data_to_webob_response(response, data):
     return response
 
 
-def find_block_in_progress_summary(block_url_name=None, progress_data=None):
+def find_blocks_in_progress_summary(list_blocks_url=None, progress_data=None):
 
-    if block_url_name is None or progress_data is None:
-        return None
+    if list_blocks_url is None or progress_data is None or not list_blocks_url:
+        return []
 
+    blocks = []
     for chapter in progress_data:
-        if chapter['url_name'] == block_url_name:
-                return chapter
+        if chapter['url_name'] in list_blocks_url:
+            blocks.append(chapter)
         for section in chapter['sections']:
-                if section['url_name'] == block_url_name:
-                    return section
-    return None
+                if section['url_name'] in list_blocks_url:
+                    blocks.append(section)
+    return blocks

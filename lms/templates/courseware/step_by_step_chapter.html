@@ -1,0 +1,13 @@
+<%!
+from django.utils.translation import ugettext as _
+%>
+
+    <section class="course-content" id="course-content">
+        <main id="main" aria-label="Content" tabindex="-1">
+            <p class="sequential-status-message">
+                ${_("You must earn {pass_percent:.0%} points of previous chapter").format(
+                    pass_percent=next_chapter_pass_percent
+                )}
+            </p>
+         </main>
+    </section>

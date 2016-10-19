@@ -168,6 +168,9 @@ FEATURES['CERTIFICATES_HTML_VIEW'] = True
 ########################## Visual progress in accordion #######################
 FEATURES['ENABLE_VISUAL_PROGRESS_IN_ACCORDION'] = True
 
+########################## step by step learn chapters #######################
+FEATURES['ENABLE_STEP_BY_STEP_CHAPTER'] = True
+
 ########################## Course Discovery #######################
 LANGUAGE_MAP = {'terms': {lang: display for lang, display in ALL_LANGUAGES}, 'name': 'Language'}
 COURSE_DISCOVERY_MEANINGS = {
