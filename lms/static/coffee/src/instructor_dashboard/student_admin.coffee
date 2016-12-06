@@ -40,6 +40,7 @@ class @StudentAdmin
     @$btn_rescore_problem_single  = @$section.find "input[name='rescore-problem-single']"
     @$btn_task_history_single     = @$section.find "input[name='task-history-single']"
     @$table_task_history_single   = @$section.find ".task-history-single-table"
+    @$btn_delete_all_state        = @$section.find "input[name='delete-all-state']"
 
     # entrance-exam-specific
     @$field_entrance_exam_student_select_grade  = @$section.find "input[name='entrance-exam-student-select-grade']"
@@ -138,6 +139,38 @@ class @StudentAdmin
       else
         # Clear error messages if "Cancel" was chosen on confirmation alert
         @clear_errors()
+
+    # delete all state for student
+    @$btn_delete_all_state.click =>
+      unique_student_identifier = @$field_student_select_grade.val()
+      problem_to_reset = @$field_problem_select_single.val()
+      if not unique_student_identifier
+        return @$request_response_error_grade.text gettext("Please enter a student email address or username.")
+      if not problem_to_reset
+        return @$request_response_error_grade.text gettext("Please enter a problem location.")
+      confirm_message = gettext("Delete student '<%= student_id %>'s state all problem for course '<%= problem_id %>'?")
+      full_confirm_message = _.template(confirm_message)({student_id: unique_student_identifier, problem_id: problem_to_reset})
+
+      if window.confirm full_confirm_message
+        send_data =
+          unique_student_identifier: unique_student_identifier
+          problem_to_reset: problem_to_reset
+          delete_module: true
+          delete_all_state_on_course: true
+        error_message = gettext("Error deleting student '<%= student_id %>'s state on problem '<%= problem_id %>'. Make sure that the problem and student identifiers are complete and correct.")
+        full_error_message = _.template(error_message)({student_id: unique_student_identifier, problem_id: problem_to_reset})
+
+        $.ajax
+          type: 'POST'
+          dataType: 'json'
+          url: @$btn_delete_all_state.data 'endpoint'
+          data: send_data
+          success: @clear_errors_then -> alert gettext('Module state successfully deleted.')
+          error: std_ajax_err => @$request_response_error_grade.text full_error_message
+      else
+        # Clear error messages if "Cancel" was chosen on confirmation alert
+        @clear_errors()
+
 
     # start task to rescore problem for student
     @$btn_rescore_problem_single.click =>
