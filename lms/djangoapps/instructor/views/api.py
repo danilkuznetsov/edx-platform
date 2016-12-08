@@ -118,6 +118,7 @@ def common_exceptions_400(func):
     Catches common exceptions and renders matching 400 errors.
     (decorator without arguments)
     """
+
     def wrapped(request, *args, **kwargs):  # pylint: disable=missing-docstring
         use_json = (request.is_ajax() or
                     request.META.get("HTTP_ACCEPT", "").startswith("application/json"))
@@ -135,6 +136,7 @@ def common_exceptions_400(func):
                 return JsonResponse({"error": message}, 400)
             else:
                 return HttpResponseBadRequest(message)
+
     return wrapped
 
 
@@ -150,6 +152,7 @@ def require_post_params(*args, **kwargs):
     required_params = []
     required_params += [(arg, None) for arg in args]
     required_params += [(key, kwargs[key]) for key in kwargs]
+
     # required_params = e.g. [('action', 'enroll or unenroll'), ['emails', None]]
 
     def decorator(func):  # pylint: disable=missing-docstring
@@ -172,7 +175,9 @@ def require_post_params(*args, **kwargs):
                 return JsonResponse(error_response_data, status=400)
             else:
                 return func(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 
@@ -201,12 +206,15 @@ def require_level(level):
                 return func(*args, **kwargs)
             else:
                 return HttpResponseForbidden()
+
         return wrapped
+
     return decorator
 
 
 def require_global_staff(func):
     """View decorator that requires that the user have global staff permissions. """
+
     def wrapped(request, *args, **kwargs):  # pylint: disable=missing-docstring
         if GlobalStaff().has_user(request.user):
             return func(request, *args, **kwargs)
@@ -216,6 +224,7 @@ def require_global_staff(func):
                     platform_name=configuration_helpers.get_value('PLATFORM_NAME', settings.PLATFORM_NAME)
                 )
             )
+
     return wrapped
 
 
@@ -227,6 +236,7 @@ def require_sales_admin(func):
 
     If the user does not have privileges for this operation, this will return HttpResponseForbidden (403).
     """
+
     def wrapped(request, course_id):  # pylint: disable=missing-docstring
 
         try:
@@ -241,6 +251,7 @@ def require_sales_admin(func):
             return func(request, course_id)
         else:
             return HttpResponseForbidden()
+
     return wrapped
 
 
@@ -252,6 +263,7 @@ def require_finance_admin(func):
 
     If the user does not have privileges for this operation, this will return HttpResponseForbidden (403).
     """
+
     def wrapped(request, course_id):  # pylint: disable=missing-docstring
 
         try:
@@ -266,6 +278,7 @@ def require_finance_admin(func):
             return func(request, course_id)
         else:
             return HttpResponseForbidden()
+
     return wrapped
 
 
@@ -327,7 +340,8 @@ def register_and_enroll_students(request, course_id):  # pylint: disable=too-man
             else:
                 general_errors.append({
                     'username': '', 'email': '',
-                    'response': _('Make sure that the file you upload is in CSV format with no extraneous characters or rows.')
+                    'response': _(
+                        'Make sure that the file you upload is in CSV format with no extraneous characters or rows.')
                 })
 
         except Exception:  # pylint: disable=broad-except
@@ -348,7 +362,9 @@ def register_and_enroll_students(request, course_id):  # pylint: disable=too-man
                     general_errors.append({
                         'username': '',
                         'email': '',
-                        'response': _('Data in row #{row_num} must have exactly four columns: email, username, full name, and country').format(row_num=row_num)
+                        'response': _(
+                            'Data in row #{row_num} must have exactly four columns: email, username, full name, and country').format(
+                            row_num=row_num)
                     })
                 continue
 
@@ -363,7 +379,8 @@ def register_and_enroll_students(request, course_id):  # pylint: disable=too-man
                 validate_email(email)  # Raises ValidationError if invalid
             except ValidationError:
                 row_errors.append({
-                    'username': username, 'email': email, 'response': _('Invalid email {email_address}.').format(email_address=email)})
+                    'username': username, 'email': email,
+                    'response': _('Invalid email {email_address}.').format(email_address=email)})
             else:
                 if User.objects.filter(email=email).exists():
                     # Email address already exists. assume it is the correct user
@@ -400,7 +417,8 @@ def register_and_enroll_students(request, course_id):  # pylint: disable=too-man
                             reason='Enrolling via csv upload',
                             state_transition=UNENROLLED_TO_ENROLLED,
                         )
-                        enroll_email(course_id=course_id, student_email=email, auto_enroll=True, email_students=True, email_params=email_params)
+                        enroll_email(course_id=course_id, student_email=email, auto_enroll=True, email_students=True,
+                                     email_params=email_params)
                 else:
                     # This email does not yet exist, so we need to create a new account
                     # If username already exists in the database, then create_and_enroll_user
@@ -431,7 +449,7 @@ def generate_random_string(length):
     chars = [
         char for char in string.ascii_uppercase + string.digits + string.ascii_lowercase
         if char not in 'aAeEiIoOuU1l'
-    ]
+        ]
 
     return string.join((random.choice(chars) for __ in range(length)), '')
 
@@ -1589,7 +1607,7 @@ def get_registration_codes(request, course_id):
     """
     course_id = SlashSeparatedCourseKey.from_deprecated_string(course_id)
 
-    #filter all the  course registration codes
+    # filter all the  course registration codes
     registration_codes = CourseRegistrationCode.objects.filter(
         course_id=course_id
     ).order_by('invoice_item__invoice__company_name')
@@ -1742,7 +1760,7 @@ def generate_registration_codes(request, course_id):
         'corp_address': configuration_helpers.get_value('invoice_corp_address', settings.INVOICE_CORP_ADDRESS),
         'payment_instructions': configuration_helpers.get_value(
             'invoice_payment_instructions',
-            settings. INVOICE_PAYMENT_INSTRUCTIONS,
+            settings.INVOICE_PAYMENT_INSTRUCTIONS,
         ),
         'date': time.strftime("%m/%d/%Y")
     }
@@ -1752,7 +1770,7 @@ def generate_registration_codes(request, course_id):
 
     invoice_attachment = render_to_string('emails/registration_codes_sale_invoice_attachment.txt', context)
 
-    #send_mail(subject, message, from_address, recipient_list, fail_silently=False)
+    # send_mail(subject, message, from_address, recipient_list, fail_silently=False)
     csv_file = StringIO.StringIO()
     csv_writer = csv.writer(csv_file)
     for registration_code in registration_codes:
@@ -1841,7 +1859,8 @@ def spent_registration_codes(request, course_id):
 
         company_name = request.POST['spent_company_name']
         if company_name:
-            spent_codes_list = spent_codes_list.filter(invoice_item__invoice__company_name=company_name)  # pylint: disable=maybe-no-member
+            spent_codes_list = spent_codes_list.filter(
+                invoice_item__invoice__company_name=company_name)  # pylint: disable=maybe-no-member
 
     csv_type = 'spent'
     return registration_codes_csv("Spent_Registration_Codes.csv", spent_codes_list, csv_type)
@@ -1877,7 +1896,8 @@ def get_anon_ids(request, course_id):  # pylint: disable=unused-argument
         courseenrollment__course_id=course_id,
     ).order_by('id')
     header = ['User ID', 'Anonymized User ID', 'Course Specific Anonymized User ID']
-    rows = [[s.id, unique_id_for_user(s, save=False), anonymous_id_for_user(s, course_id, save=False)] for s in students]
+    rows = [[s.id, unique_id_for_user(s, save=False), anonymous_id_for_user(s, course_id, save=False)] for s in
+            students]
     return csv_response(course_id.to_deprecated_string().replace('/', '-') + '-anon-ids.csv', header, rows)
 
 
@@ -1902,7 +1922,8 @@ def get_student_progress_url(request, course_id):
     course_id = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     user = get_student_from_identifier(request.POST.get('unique_student_identifier'))
 
-    progress_url = reverse('student_progress', kwargs={'course_id': course_id.to_deprecated_string(), 'student_id': user.id})
+    progress_url = reverse('student_progress',
+                           kwargs={'course_id': course_id.to_deprecated_string(), 'student_id': user.id})
 
     response_payload = {
         'course_id': course_id.to_deprecated_string(),
@@ -1938,6 +1959,7 @@ def reset_student_attempts(request, course_id):
             requires instructor access
             mutually exclusive with all_students
     """
+    request_course_id = course_id
     course_id = SlashSeparatedCourseKey.from_deprecated_string(course_id)
     course = get_course_with_access(
         request.user, 'staff', course_id, depth=None
@@ -1950,52 +1972,67 @@ def reset_student_attempts(request, course_id):
         student = get_student_from_identifier(student_identifier)
     all_students = request.POST.get('all_students', False) in ['true', 'True', True]
     delete_module = request.POST.get('delete_module', False) in ['true', 'True', True]
+    delete_all_state_on_course = request.POST.get('delete_all_state_on_course', False) in ['true', 'True', True]
 
     # parameter combinations
     if all_students and student:
         return HttpResponseBadRequest(
             "all_students and unique_student_identifier are mutually exclusive."
         )
+
     if all_students and delete_module:
         return HttpResponseBadRequest(
             "all_students and delete_module are mutually exclusive."
         )
 
+    if all_students and delete_all_state_on_course:
+        return HttpResponseBadRequest(
+            "all_students and delete_all_state_on_course are mutually exclusive."
+        )
     # instructor authorization
     if all_students or delete_module:
         if not has_access(request.user, 'instructor', course):
             return HttpResponseForbidden("Requires instructor access.")
 
-    try:
-        module_state_key = course_id.make_usage_key_from_deprecated_string(problem_to_reset)
-    except InvalidKeyError:
-        return HttpResponseBadRequest()
-
     response_payload = {}
-    response_payload['problem_to_reset'] = problem_to_reset
 
-    if student:
+    if delete_all_state_on_course:
+        response_payload['problem_to_reset'] = request_course_id
         try:
-            enrollment.reset_student_attempts(
-                course_id,
-                student,
-                module_state_key,
-                requesting_user=request.user,
-                delete_module=delete_module
-            )
+            enrollment.delete_all_graded_states_by_user(course.location, course_id, student)
         except StudentModule.DoesNotExist:
-            return HttpResponseBadRequest(_("Module does not exist."))
-        except sub_api.SubmissionError:
-            # Trust the submissions API to log the error
-            error_msg = _("An error occurred while deleting the score.")
+            error_msg = _("An error occurred while deleting the states.")
             return HttpResponse(error_msg, status=500)
-        response_payload['student'] = student_identifier
-    elif all_students:
-        instructor_task.api.submit_reset_problem_attempts_for_all_students(request, module_state_key)
-        response_payload['task'] = 'created'
-        response_payload['student'] = 'All Students'
     else:
-        return HttpResponseBadRequest()
+        try:
+            module_state_key = course_id.make_usage_key_from_deprecated_string(problem_to_reset)
+        except InvalidKeyError:
+            return HttpResponseBadRequest()
+
+        response_payload['problem_to_reset'] = problem_to_reset
+
+        if student:
+            try:
+                enrollment.reset_student_attempts(
+                    course_id,
+                    student,
+                    module_state_key,
+                    requesting_user=request.user,
+                    delete_module=delete_module
+                )
+            except StudentModule.DoesNotExist:
+                return HttpResponseBadRequest(_("Module does not exist."))
+            except sub_api.SubmissionError:
+                # Trust the submissions API to log the error
+                error_msg = _("An error occurred while deleting the score.")
+                return HttpResponse(error_msg, status=500)
+            response_payload['student'] = student_identifier
+        elif all_students:
+            instructor_task.api.submit_reset_problem_attempts_for_all_students(request, module_state_key)
+            response_payload['task'] = 'created'
+            response_payload['student'] = 'All Students'
+        else:
+            return HttpResponseBadRequest()
 
     return JsonResponse(response_payload)
 
@@ -2312,7 +2349,7 @@ def list_report_downloads(_request, course_id):
         'downloads': [
             dict(name=name, url=url, link=HTML('<a href="{}">{}</a>').format(HTML(url), Text(name)))
             for name, url in report_store.links_for(course_id)
-        ]
+            ]
     }
     return JsonResponse(response_payload)
 
@@ -2333,7 +2370,7 @@ def list_financial_report_downloads(_request, course_id):
         'downloads': [
             dict(name=name, url=url, link=HTML('<a href="{}">{}</a>').format(HTML(url), Text(name)))
             for name, url in report_store.links_for(course_id)
-        ]
+            ]
     }
     return JsonResponse(response_payload)
 

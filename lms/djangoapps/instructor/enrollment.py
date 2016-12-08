@@ -12,7 +12,9 @@ from django.core.urlresolvers import reverse
 from django.core.mail import send_mail
 from django.utils.translation import override as override_language
 
+from course_blocks.api import get_course_blocks
 from course_modes.models import CourseMode
+from courseware.grades import possibly_scored
 from student.models import CourseEnrollment, CourseEnrollmentAllowed
 from courseware.models import StudentModule
 from edxmako.shortcuts import render_to_string
@@ -464,3 +466,22 @@ def uses_shib(course):
     Returns a boolean indicating if Shibboleth authentication is set for this course.
     """
     return course.enrollment_domain and course.enrollment_domain.startswith(settings.SHIBBOLETH_DOMAIN_PREFIX)
+
+
+def delete_all_graded_states_by_user(course_location, course_key, student):
+    """
+    Delete all states for user on course
+
+    """
+    course_structure = get_course_blocks(student, course_location)
+
+    if not len(course_structure):
+        return None
+
+    scorable_locations = [block_key for block_key in course_structure if possibly_scored(block_key)]
+
+    StudentModule.objects.filter(
+        student_id=student.id,
+        course_id=course_key,
+        module_state_key__in=set(scorable_locations),
+    ).delete()
