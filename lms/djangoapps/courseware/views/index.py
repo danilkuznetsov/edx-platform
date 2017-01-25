@@ -102,7 +102,7 @@ class CoursewareIndex(View):
         self.progress_summary = None
 
         try:
-            self._init_new_relic()
+            # self._init_new_relic()
             self._clean_position()
             with modulestore().bulk_operations(self.course_key):
                 self.course = get_course_with_access(request.user, 'load', self.course_key, depth=CONTENT_DEPTH)
@@ -162,13 +162,13 @@ class CoursewareIndex(View):
         self._prefetch_and_bind_course()
 
         if self.course.has_children_at_depth(CONTENT_DEPTH):
-            self._reset_section_to_exam_if_required()
+            # self._reset_section_to_exam_if_required()
             self.chapter = self._find_chapter()
             self.section = self._find_section()
 
             if self.chapter and self.section:
                 self._redirect_if_not_requested_section()
-                self._verify_section_not_gated()
+                # self._verify_section_not_gated()
                 self._save_positions()
                 self._prefetch_and_bind_section()
 
@@ -196,12 +196,12 @@ class CoursewareIndex(View):
                 )
             )
 
-    def _init_new_relic(self):
-        """
-        Initialize metrics for New Relic so we can slice data in New Relic Insights
-        """
-        newrelic.agent.add_custom_parameter('course_id', unicode(self.course_key))
-        newrelic.agent.add_custom_parameter('org', unicode(self.course_key.org))
+    # def _init_new_relic(self):
+    #     """
+    #     Initialize metrics for New Relic so we can slice data in New Relic Insights
+    #     """
+    #     newrelic.agent.add_custom_parameter('course_id', unicode(self.course_key))
+    #     newrelic.agent.add_custom_parameter('org', unicode(self.course_key.org))
 
     def _clean_position(self):
         """
@@ -217,30 +217,31 @@ class CoursewareIndex(View):
         """
         Verifies that the user can enter the course.
         """
-        self._redirect_if_needed_to_pay_for_course()
         self._redirect_if_needed_to_register()
-        self._redirect_if_needed_for_prereqs()
-        self._redirect_if_needed_for_course_survey()
+        # disable this checks because they do not need for our
+        # self._redirect_if_needed_to_pay_for_course()
+        # self._redirect_if_needed_for_prereqs()
+        # self._redirect_if_needed_for_course_survey()
 
-    def _redirect_if_needed_to_pay_for_course(self):
-        """
-        Redirect to dashboard if the course is blocked due to non-payment.
-        """
-        self.real_user = User.objects.prefetch_related("groups").get(id=self.real_user.id)
-        redeemed_registration_codes = CourseRegistrationCode.objects.filter(
-            course_id=self.course_key,
-            registrationcoderedemption__redeemed_by=self.real_user
-        )
-        if is_course_blocked(self.request, redeemed_registration_codes, self.course_key):
-            # registration codes may be generated via Bulk Purchase Scenario
-            # we have to check only for the invoice generated registration codes
-            # that their invoice is valid or not
-            log.warning(
-                u'User %s cannot access the course %s because payment has not yet been received',
-                self.real_user,
-                unicode(self.course_key),
-            )
-            raise Redirect(reverse('dashboard'))
+    # def _redirect_if_needed_to_pay_for_course(self):
+    #     """
+    #     Redirect to dashboard if the course is blocked due to non-payment.
+    #     """
+    #     self.real_user = User.objects.prefetch_related("groups").get(id=self.real_user.id)
+    #     redeemed_registration_codes = CourseRegistrationCode.objects.filter(
+    #         course_id=self.course_key,
+    #         registrationcoderedemption__redeemed_by=self.real_user
+    #     )
+    #     if is_course_blocked(self.request, redeemed_registration_codes, self.course_key):
+    #         # registration codes may be generated via Bulk Purchase Scenario
+    #         # we have to check only for the invoice generated registration codes
+    #         # that their invoice is valid or not
+    #         log.warning(
+    #             u'User %s cannot access the course %s because payment has not yet been received',
+    #             self.real_user,
+    #             unicode(self.course_key),
+    #         )
+    #         raise Redirect(reverse('dashboard'))
 
     def _redirect_if_needed_to_register(self):
         """
@@ -259,52 +260,52 @@ class CoursewareIndex(View):
                 raise Redirect(redirect_url)
             raise Redirect(reverse('about_course', args=[unicode(self.course.id)]))
 
-    def _redirect_if_needed_for_prereqs(self):
-        """
-        See if all pre-requisites (as per the milestones app feature) have been
-        fulfilled. Note that if the pre-requisite feature flag has been turned off
-        (default) then this check will always pass.
-        """
-        if not has_access(self.effective_user, 'view_courseware_with_prerequisites', self.course):
-            # Prerequisites have not been fulfilled.
-            # Therefore redirect to the Dashboard.
-            log.info(
-                u'User %d tried to view course %s '
-                u'without fulfilling prerequisites',
-                self.effective_user.id, unicode(self.course.id))
-            raise Redirect(reverse('dashboard'))
+    # def _redirect_if_needed_for_prereqs(self):
+    #     """
+    #     See if all pre-requisites (as per the milestones app feature) have been
+    #     fulfilled. Note that if the pre-requisite feature flag has been turned off
+    #     (default) then this check will always pass.
+    #     """
+    #     if not has_access(self.effective_user, 'view_courseware_with_prerequisites', self.course):
+    #         # Prerequisites have not been fulfilled.
+    #         # Therefore redirect to the Dashboard.
+    #         log.info(
+    #             u'User %d tried to view course %s '
+    #             u'without fulfilling prerequisites',
+    #             self.effective_user.id, unicode(self.course.id))
+    #         raise Redirect(reverse('dashboard'))
 
-    def _redirect_if_needed_for_course_survey(self):
-        """
-        Check to see if there is a required survey that must be taken before
-        the user can access the course.
-        """
-        if must_answer_survey(self.course, self.effective_user):
-            raise Redirect(reverse('course_survey', args=[unicode(self.course.id)]))
+    # def _redirect_if_needed_for_course_survey(self):
+    #     """
+    #     Check to see if there is a required survey that must be taken before
+    #     the user can access the course.
+    #     """
+    #     if must_answer_survey(self.course, self.effective_user):
+    #         raise Redirect(reverse('course_survey', args=[unicode(self.course.id)]))
 
-    def _reset_section_to_exam_if_required(self):
-        """
-        Check to see if an Entrance Exam is required for the user.
-        """
-        if (
-                    course_has_entrance_exam(self.course) and
-                    user_must_complete_entrance_exam(self.request, self.effective_user, self.course)
-        ):
-            exam_chapter = get_entrance_exam_content(self.effective_user, self.course)
-            if exam_chapter and exam_chapter.get_children():
-                exam_section = exam_chapter.get_children()[0]
-                if exam_section:
-                    self.chapter_url_name = exam_chapter.url_name
-                    self.section_url_name = exam_section.url_name
+    # def _reset_section_to_exam_if_required(self):
+    #     """
+    #     Check to see if an Entrance Exam is required for the user.
+    #     """
+    #     if (
+    #                 course_has_entrance_exam(self.course) and
+    #                 user_must_complete_entrance_exam(self.request, self.effective_user, self.course)
+    #     ):
+    #         exam_chapter = get_entrance_exam_content(self.effective_user, self.course)
+    #         if exam_chapter and exam_chapter.get_children():
+    #             exam_section = exam_chapter.get_children()[0]
+    #             if exam_section:
+    #                 self.chapter_url_name = exam_chapter.url_name
+    #                 self.section_url_name = exam_section.url_name
 
-    def _verify_section_not_gated(self):
-        """
-        Verify whether the section is gated and accessible to the user.
-        """
-        gated_content = gating_api.get_gated_content(self.course, self.effective_user)
-        if gated_content:
-            if unicode(self.section.location) in gated_content:
-                raise Http404
+    # def _verify_section_not_gated(self):
+    #     """
+    #     Verify whether the section is gated and accessible to the user.
+    #     """
+    #     gated_content = gating_api.get_gated_content(self.course, self.effective_user)
+    #     if gated_content:
+    #         if unicode(self.section.location) in gated_content:
+    #             raise Http404
 
     def _get_language_preference(self):
         """
@@ -427,6 +428,7 @@ class CoursewareIndex(View):
         Returns and creates the rendering context for the courseware.
         Also returns the table of contents for the courseware.
         """
+
         courseware_context = {
             'csrf': csrf(self.request)['csrf_token'],
             'COURSE_TITLE': self.course.display_name_with_default_escaped,
@@ -484,22 +486,16 @@ class CoursewareIndex(View):
             # section data
             courseware_context['section_title'] = self.section.display_name_with_default_escaped
 
+            section_context = self._create_section_context(
+                table_of_contents['previous_of_active_section'],
+                table_of_contents['next_of_active_section'],
+            )
             if settings.FEATURES.get('ENABLE_STEP_BY_STEP_CHAPTER', False) and self._is_prev_chapters_incompleted():
-                courseware_context['fragment'] = Fragment(
-                    content=render_to_string('courseware/step_by_step_chapter.html',
-                                                 {
-                                                     'next_chapter_pass_percent':
-                                                     settings.FEATURES.get('STEP_BY_STEP_CHAPTER_PASS_LEVEL', 0)
-
-                                                 }
-                                             )
-                )
+                section_context['is_prev_chapters_incompleted'] = True
             else:
-                section_context = self._create_section_context(
-                    table_of_contents['previous_of_active_section'],
-                    table_of_contents['next_of_active_section'],
-                )
-                courseware_context['fragment'] = self.section.render(STUDENT_VIEW, section_context)
+                section_context['is_prev_chapters_incompleted'] = False
+
+            courseware_context['fragment'] = self.section.render(STUDENT_VIEW, section_context)
 
         return courseware_context
 
