@@ -12,6 +12,7 @@ from xmodule.seq_module import SequenceFields
 from xmodule.studio_editable import StudioEditableBlock
 from xmodule.x_module import STUDENT_VIEW, XModuleFields
 from xmodule.xml_module import XmlParserMixin
+from django.conf import settings
 
 log = logging.getLogger(__name__)
 
@@ -53,14 +54,38 @@ class VerticalBlock(SequenceFields, XModuleFields, StudioEditableBlock, XmlParse
         child_context['child_of_vertical'] = True
 
         # pylint: disable=no-member
-        for child in self.get_display_items():
-            rendered_child = child.render(STUDENT_VIEW, child_context)
-            fragment.add_frag_resources(rendered_child)
+        display_items = self.get_display_items()
 
+        if len(display_items) == 0:
             contents.append({
-                'id': child.location.to_deprecated_string(),
-                'content': rendered_child.content
+                'id': 'id',
+                'content': self.system.render_template('courseware/pay_and_get_access.html',
+                                                       {
+                                                           'next_chapter_pass_percent': 0
+                                                       }
+                                                       )
             })
+
+        if child_context['is_prev_chapters_incompleted'] and len(display_items) > 0:
+            contents.append({
+                'id': 'id',
+                'content': self.system.render_template('courseware/step_by_step_chapter.html',
+                                                       {
+                                                           'next_chapter_pass_percent': \
+                                                               settings.FEATURES.get('STEP_BY_STEP_CHAPTER_PASS_LEVEL',
+                                                                                     0)
+                                                       }
+                                                       )
+            })
+        else:
+            for child in display_items:
+                rendered_child = child.render(STUDENT_VIEW, child_context)
+                fragment.add_frag_resources(rendered_child)
+
+                contents.append({
+                    'id': child.location.to_deprecated_string(),
+                    'content': rendered_child.content
+                })
 
         fragment.add_content(self.system.render_template('vert_module.html', {
             'items': contents,

@@ -4,10 +4,12 @@ from django.utils.translation import ugettext as _
 
     <section class="course-content" id="course-content">
         <main id="main" aria-label="Content" tabindex="-1">
-            <p class="sequential-status-message">
-                ${_("You must earn {pass_percent:.0%} points of previous chapter").format(
+            <h2>Привет! к сожалению ты не закончил предыдущие модули :(</h2>
+            <p>
+                Для того чтобы приступить в изучению материала в этом модуле
+               <br>необходимо пройти все предыдущие модули и набрать минимум ${_("{pass_percent:.0%}").format(
                     pass_percent=next_chapter_pass_percent
-                )}
+                )} в каждом.
             </p>
          </main>
     </section>
