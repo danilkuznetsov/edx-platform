@@ -19,9 +19,10 @@ class @Problem
     $(selector, @el)
 
   bind: =>
-    if MathJax?
-      @el.find('.problem > div').each (index, element) =>
-        MathJax.Hub.Queue ["Typeset", MathJax.Hub, element]
+#    we don't use MathJax
+#    if MathJax?
+#      @el.find('.problem > div').each (index, element) =>
+#        MathJax.Hub.Queue ["Typeset", MathJax.Hub, element]
 
     window.update_schematics()
 
